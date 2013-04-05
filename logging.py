@@ -4,11 +4,15 @@ import re
 def getValue(x):
 	value = lldb.frame.EvaluateExpression(x)
 	if (value.TypeIsPointerType()):
-		return value.GetObjectDescription()
+		ret = value.GetObjectDescription()
 	else:
-		return value.GetValue()
+		ret = value.GetValue()
+	if ret:
+		return ret
+	else:
+		return "Not Found"
 
-def parseVarString:(string):
+def parseVarString(string):
 	objs = re.findall("\\{.*?\\}", string)
 	objs = map(lambda x: x.replace('{','').replace('}',''), objs)
 	objs = map(lambda x: getValue(x), objs)
@@ -16,11 +20,18 @@ def parseVarString:(string):
 
 	return base % tuple(objs)
 
-def logv(extra=''):
+def logv(extra='', showLines=True, showMethod=True):
 	fun = lldb.frame.GetFunctionName()
 	line = lldb.frame.GetLineEntry().GetLine()
-	
-	print '%s [Line %d] %s' % (fun, line, parseVarString(extra))
+
+	if showMethod and showLines:
+		print '%s [Line %d] %s' % (fun, line, parseVarString(extra))
+	elif showLines:
+		print '[Line %d] %s' % (line, parseVarString(extra))
+	elif showMethod:
+		print '%s %s' % (fun, parseVarString(extra))
+	else:
+		print parseVarString(extra)
 
 def log(extra):
 	print parseVarString(extra)
