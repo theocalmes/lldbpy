@@ -1,4 +1,4 @@
-An Introduction to debugging on iOS using lldb python API.
+An Introduction to debugging on iOS using lldb.
 
 Enabling lldb
 -------------
@@ -10,11 +10,11 @@ After stopping at a breakpoint you can inspect the state of the current frame (h
 
 Try out these commands:
 
-po <obj>
-p <primative>
-frame select 0
-frame variable
-expr (void)NSLog(@"A Log")
+	po <obj>
+	p <primative>
+	frame select 0
+	frame variable
+	expr (void)NSLog(@"A Log")
 
 `po` will print out the description of the object you specify.
 `p` is the same as po but for primitives like integers.
@@ -25,28 +25,79 @@ You can access the variables within that frame and look at their value.
 
 Python API
 ----------
+lldb comes with a full python API. To call a python function from the debugger command line just use `script <python code>`. You can also access the interactive python console by just using `script`. The base module for lldb in python is just `lldb` you can import it into your scripts as you would any other python module: `import lldb`. You can get to the documentation from the debugger by typing `script help(lldb)`.
 
-lldd lets your script the debugger using python. Try running this in your debugger:
+Use this make a project and add this class to play around with the commands, or use one of your existing projects.
+
+	@interface LLDBExampleCommands ()
+	@property (strong, nonatomic) NSArray *array;
+	@property (strong, nonatomic) NSString *string;
+	@property (strong, nonatomic) UIView *view;
+	@property (assign, nonatomic) NSInteger number;
+	@end
+
+	@implementation LLDBExampleCommands
+
+	- (id)init
+	{
+	    self = [super init];
+	    if (self) {
+
+	        _array = @[@"obj", @"in", @"my", @"array", @10];
+	        _string = @"Ralph!";
+	        _view = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 20, 20)];
+	        _number = 100;
+	        
+	        [self run];
+	    }
+	    return self;
+	}
+
+	- (void)run
+	{
+		// Breakpoint 1
+	    UIButton *button = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+	    // Breakpoint 2
+	    self.string = @"New String";
+    	self.number = -1;
+	    // Breakpoint 3
+	}
+
+	@end
+
+On breakpoint 1 run these commands:
 
 	script print lldb.frame
 	script print lldb.frame.get_all_variables()
 	script print lldb.frame.GetFunctionName()
 	script help(lldb.frame)
 
+	script lldb.debugger.HandleCommand("frame info")
+
 	script print lldb.frame.GetValueForVariablePath("*self")
-	script print lldb.frame.EvaluateExpression("(<return type> *)[<obj> someMethod]").GetObjectDescription()
+	script print lldb.frame.EvaluateExpression("_view").GetObjectDescription()
+
+	script lldb.thread.StepOver()
+
+You are now on breakpoint 2, run these commands:
+
+	po button.titleLabel.text
+	script lldb.frame.EvaluateExpression('[[button titleLabel] setText:@"Tap"]')
+	po button.titleLabel.text
 
 	script myObj = lldb.frame.GetValueForVariablePath("*self") # Returns an SBValue object
 	script print myObj
 	script lldb.thread.StepOver() # The next instructions will change a property on self
 	script print myObj # Will capture the change and update the SBValue object
 
+The best way to learn all the commands is by playing around and reading the help pages. I also recommend reading http://lldb.llvm.org/lldb-gdb.html.
 
 Setting up lldbinit
 -------------------
 
-the lldbinit file contains a list of commands that will be run at the start of your debugging. You can load up your python scripts here and create some nice aliases.
-Just go into your terminal and type vim ~/.lldbinit to make your file. Here is a starter init file:
+the lldbinit file contains a list of commands that will be run at the start of your debugging. You can load up your python scripts here and create aliases to commands.
+
+Just go into your terminal and type `vim ~/.lldbinit` to make your file. Here is a starter init file:
 
 	script import os, sys
 	script sys.path[:0] = [os.path.expanduser("~/dev/lldbpy")] # This is the directory I keep my scripts in.
@@ -59,10 +110,9 @@ To make sure your import statements are working correctly add a blank file in yo
 
 Example: Logging
 ---------------
-
 Here we will make a simple utility script to help us get rid of NSLogs.
 We will make a python function which will allow us to pass a formatted string and print out the method we are in along with the current line number.
-The formmating for the log will be of the form logv("String Value: {myString}, Count: {count}" which will print out:
+The formmating for the log will be of the form `logv("String Value: {myString}, Count: {count}"` which will print out:
 `-[MyClass myMethod] [Line xx] String Value: "Hello", Count: 10`
 
 	# ~/dev/lldbpy/logging.py
